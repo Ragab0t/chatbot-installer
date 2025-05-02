@@ -14,18 +14,26 @@ echo "[+] Redis is running on port 6379"
 
 # Harden Redis: disable dangerous commands
 REDIS_CONF="/etc/redis/redis.conf"
+sudo sed -i 's/^# *bind .*/bind 0.0.0.0/' $REDIS_CONF
+sudo sed -i 's/^bind .*/bind 0.0.0.0/' $REDIS_CONF
+sudo sed -i 's/^# *protected-mode .*/protected-mode no/' $REDIS_CONF
+sudo sed -i 's/^protected-mode .*/protected-mode no/' $REDIS_CONF
 sudo sed -i 's/^# *rename-command CONFIG .*/rename-command CONFIG ""/' $REDIS_CONF
 sudo sed -i 's/^# *rename-command MODULE .*/rename-command MODULE ""/' $REDIS_CONF
 sudo sed -i 's/^# *rename-command SAVE .*/rename-command SAVE ""/' $REDIS_CONF
 sudo sed -i 's/^# *rename-command BGSAVE .*/rename-command BGSAVE ""/' $REDIS_CONF
-sudo sed -i 's/^# *rename-command SHUTDOWN .*/rename-command SHUTDOWN ""/' $REDIS_CONF
 sudo sed -i 's/^# *rename-command DEBUG .*/rename-command DEBUG ""/' $REDIS_CONF
+# Force disable SHUTDOWN command, even if uncommented
+sudo sed -i 's/^rename-command SHUTDOWN.*/rename-command SHUTDOWN ""/' $REDIS_CONF
+# Also add it if it doesn’t exist
+grep -q '^rename-command SHUTDOWN' $REDIS_CONF || echo 'rename-command SHUTDOWN ""' | sudo tee -a $REDIS_CONF
+
 sudo systemctl restart redis-server
 
 # Set up Lighttpd with port 8080
 echo "[+] Configuring Lighttpd on port 8080..."
 sudo mkdir -p /var/www/html-8080
-echo "<html><body><h1>Welcome to the HR Chatbot!</h1></body></html>" | sudo tee /var/www/html-8080/index.html
+echo "<html><body><h1>Welcome!</h1></body></html>" | sudo tee /var/www/html-8080/index.html
 
 sudo sed -i 's|^server.document-root.*|server.document-root = "/var/www/html-8080"|' /etc/lighttpd/lighttpd.conf
 sudo sed -i 's|^server.port.*|server.port = 8080|' /etc/lighttpd/lighttpd.conf
