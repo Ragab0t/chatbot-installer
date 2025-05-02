@@ -1,34 +1,42 @@
 #!/bin/bash
 set -e
 
-echo "[+] Installing Redis and Lighttpd..."
+echo "[+] Removing previous Redis installation (if any)..."
+sudo systemctl stop redis-server || true
+sudo apt purge -y redis-server || true
+sudo rm -f /etc/redis/redis.conf
+sudo rm -rf /var/lib/redis
+sudo apt autoremove -y
 
-# Update and install packages
+echo "[+] Installing Redis, Lighttpd, and tcpdump..."
 sudo apt update
 sudo apt install -y redis-server lighttpd tcpdump
 
+# Harden Redis before starting it
+REDIS_CONF="/etc/redis/redis.conf"
+if [ ! -f "$REDIS_CONF" ]; then
+  echo "[!] Redis config not found at $REDIS_CONF"
+  exit 1
+fi
+
+# Set Redis to listen on all interfaces and disable protected mode
+sudo sed -i 's/^# *bind .*/bind 0.0.0.0/' "$REDIS_CONF"
+sudo sed -i 's/^bind .*/bind 0.0.0.0/' "$REDIS_CONF"
+sudo sed -i 's/^# *protected-mode .*/protected-mode no/' "$REDIS_CONF"
+sudo sed -i 's/^protected-mode .*/protected-mode no/' "$REDIS_CONF"
+
+# Remove all existing rename-command lines
+sudo sed -i '/^rename-command /d' "$REDIS_CONF"
+
+# Append hardening rename-command lines (disable dangerous commands)
+for cmd in CONFIG MODULE SAVE BGSAVE DEBUG SHUTDOWN; do
+  echo "rename-command $cmd \"\"" | sudo tee -a "$REDIS_CONF" > /dev/null
+done
+
 # Enable and start Redis
 sudo systemctl enable redis-server
-sudo systemctl start redis-server
-echo "[+] Redis is running on port 6379"
-
-# Harden Redis: disable dangerous commands
-REDIS_CONF="/etc/redis/redis.conf"
-sudo sed -i 's/^# *bind .*/bind 0.0.0.0/' $REDIS_CONF
-sudo sed -i 's/^bind .*/bind 0.0.0.0/' $REDIS_CONF
-sudo sed -i 's/^# *protected-mode .*/protected-mode no/' $REDIS_CONF
-sudo sed -i 's/^protected-mode .*/protected-mode no/' $REDIS_CONF
-sudo sed -i 's/^# *rename-command CONFIG .*/rename-command CONFIG ""/' $REDIS_CONF
-sudo sed -i 's/^# *rename-command MODULE .*/rename-command MODULE ""/' $REDIS_CONF
-sudo sed -i 's/^# *rename-command SAVE .*/rename-command SAVE ""/' $REDIS_CONF
-sudo sed -i 's/^# *rename-command BGSAVE .*/rename-command BGSAVE ""/' $REDIS_CONF
-sudo sed -i 's/^# *rename-command DEBUG .*/rename-command DEBUG ""/' $REDIS_CONF
-# Force disable SHUTDOWN command, even if uncommented
-sudo sed -i 's/^rename-command SHUTDOWN.*/rename-command SHUTDOWN ""/' $REDIS_CONF
-# Also add it if it doesn’t exist
-grep -q '^rename-command SHUTDOWN' $REDIS_CONF || echo 'rename-command SHUTDOWN ""' | sudo tee -a $REDIS_CONF
-
 sudo systemctl restart redis-server
+echo "[+] Redis is running on port 6379"
 
 # Set up Lighttpd with port 8080
 echo "[+] Configuring Lighttpd on port 8080..."
@@ -46,6 +54,7 @@ echo "[+] Lighttpd is running on port 8080"
 
 # Start tcpdump for Redis traffic
 echo "[+] Starting tcpdump for Redis (port 6379)..."
-sudo nohup tcpdump -i any port 6379 -nn -s 0 -w /var/log/redis_traffic.pcap > /dev/null 2>&1 &
+sudo mkdir -p /var/log/chatbot
+sudo nohup tcpdump -i any port 6379 -nn -s 0 -w /var/log/chatbot/redis_traffic.pcap > /dev/null 2>&1 &
 
 echo "[✓] Services configured and Redis traffic capture started."
