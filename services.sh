@@ -14,10 +14,6 @@ sudo apt install -y redis-server lighttpd tcpdump
 
 # Harden Redis before starting it
 REDIS_CONF="/etc/redis/redis.conf"
-if [ ! -f "$REDIS_CONF" ]; then
-  echo "[!] Redis config not found at $REDIS_CONF"
-  exit 1
-fi
 
 # Set Redis to listen on all interfaces and disable protected mode
 sudo sed -i 's/^# *bind .*/bind 0.0.0.0/' "$REDIS_CONF"
