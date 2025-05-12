@@ -101,6 +101,6 @@ sudo systemctl enable chatbot.service
 sudo systemctl start chatbot.service
 
 # Confirm service status
-# echo "[+] Checking service status:"
-# sudo systemctl status chatbot.service
+echo "[+] Checking service status:"
+sudo systemctl status chatbot.service
 
