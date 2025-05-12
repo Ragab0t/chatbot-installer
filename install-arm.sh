@@ -76,7 +76,7 @@ RestartSec=5
 ExecStartPre=-/usr/bin/docker pull ragab0t/chatbot:latest
 
 ExecStart=/usr/bin/docker run --name chatbot \
-  -p 80:80 -p 443:443 -p 8501:8501 \
+  -p 80:80 -p 443:443 \
   -v /var/log/chatbot:/app/logs \
   -v /etc/letsencrypt:/etc/letsencrypt \
   -v /etc/nginx/ssl/:/etc/nginx/ssl \
